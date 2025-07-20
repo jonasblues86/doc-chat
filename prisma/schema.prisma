@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  createdAt     DateTime       @default(now())
+  storageUsed   Int            @default(0)
+  documents     Document[]
+  conversations Conversation[]
+}
+
+model Document {
+  id        String         @id @default(uuid())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  fileName  String         @unique
+  fileSize  Int            @default(0)
+  fileType  String
+  fileUrl   String? // optional: file storage URL (S3, Supabase)
+  createdAt DateTime       @default(now())
+  status    DocumentStatus @default(processing)
+
+  chunks        DocumentChunk[] @relation("DocumentChunks")
+  conversations Conversation[]  @relation("DocumentConversations")
+  VectorIndex   VectorIndex[]
+
+  @@index([userId])
+}
+
+model DocumentChunk {
+  id         String   @id @default(uuid())
+  document   Document @relation("DocumentChunks", fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  chunkIndex Int
+  content    String
+  embedding  Bytes? // Optional: only if storing embeddings locally
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, chunkIndex])
+}
+
+model Conversation {
+  id     String @id @default(uuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  document   Document @relation("DocumentConversations", fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  title     String?
+  type      ChatType   @default(general)
+  status    ChatStatus @default(active)
+  createdAt DateTime   @default(now())
+
+  messages Message[]
+
+  @@index([userId])
+  @@index([documentId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+
+  sender    Sender
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+model VectorIndex {
+  id         String   @id @default(uuid())
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+
+  indexName String
+  vectorDb  String // e.g., Chroma, Pinecone
+  namespace String
+  createdAt DateTime @default(now())
+}
+
+enum Sender {
+  user
+  ai
+}
+
+enum ChatType {
+  general
+  summarization
+  qa
+}
+
+enum ChatStatus {
+  active
+  archived
+  deleted
+}
+
+enum DocumentStatus {
+  processing
+  ready
+  failed
+  queued
+}

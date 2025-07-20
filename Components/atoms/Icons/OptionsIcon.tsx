@@ -1,0 +1,20 @@
+import { IconProps } from "@/types";
+
+const OptionsIcon = ({height, width, fill, stroke }: IconProps) => {
+    return (
+        <svg width={width} height={height} viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" >
+
+<path d="M0 0h48v48H0z" fill="none"/>
+<g id="Shopicon">
+	<path d="M24,19c-2.761,0-5,2.239-5,5s2.239,5,5,5s5-2.239,5-5S26.761,19,24,19z M24,25c-0.551,0-1-0.449-1-1s0.449-1,1-1
+		s1,0.449,1,1S24.551,25,24,25z"/>
+	<path d="M24,6c-2.761,0-5,2.239-5,5s2.239,5,5,5s5-2.239,5-5S26.761,6,24,6z M24,12c-0.551,0-1-0.449-1-1s0.449-1,1-1s1,0.449,1,1
+		S24.551,12,24,12z"/>
+	<path d="M24,32c-2.761,0-5,2.239-5,5s2.239,5,5,5s5-2.239,5-5S26.761,32,24,32z M24,38c-0.551,0-1-0.449-1-1s0.449-1,1-1
+		s1,0.449,1,1S24.551,38,24,38z"/>
+</g>
+</svg>
+    );
+};
+
+export default OptionsIcon;
