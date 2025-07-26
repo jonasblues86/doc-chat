@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { inngest } from "./client";
 import { DocumentStatus } from "@/enums";
-import { generateEmbeddingsInPinecone } from "@/lib/langchain";
 import { revalidatePath } from "next/cache";
-import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { createChunks } from "@/utils/documents/chunking";
+import { storeChunksInDB } from "@/utils/documents/storeChunksInDB";
+import { PineconeStore } from "@langchain/pinecone";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import pinecone from "@/lib/pinecone";
+import { nameSpaceExists } from "@/utils/documents/namespaceExists";
 
 // Constants for optimization
 const MAX_CONCURRENCY = 5; // Maximum number of concurrent embedding operations
@@ -17,46 +20,74 @@ export const embeddingsGeneration = inngest.createFunction(
     const { docId } = event.data;
 
     try {
-      // Get Document Public URL
-      await step.run("Get Download URL and Download Document", async () => {
-        const document = await prisma.document.findUnique({
-          where: { id: docId },
-        });
-        if (!document) {
-          throw new Error("Document not found");
+      const chunks = await step.run(
+        "Download Document and create chunks",
+        async () => {
+          return await createChunks(docId);
         }
-        const downloadUrl = document.fileUrl;
-        const response = await fetch(downloadUrl as string);
-        if (!response.ok) {
-          throw new Error("Failed to fetch document");
+      );
+
+      const generateEmbeddingsResponse = await step.run(
+        "Generate embeddings",
+        async () => {
+          let pineconeVectorStore;
+
+          const embeddings = new GoogleGenerativeAIEmbeddings();
+
+          if (!process.env.PINECONE_INDEX_NAME) {
+            throw new Error("PINECONE_INDEX_NAME is not defined");
+          }
+
+          const index = await pinecone.index(process.env.PINECONE_INDEX_NAME);
+
+          if (!index) {
+            throw new Error("INDEX_NAME is not defined");
+          }
+          //Check if namespace already exists
+          const nameSpaceAlreadyExists = await nameSpaceExists(index, docId);
+
+          if (nameSpaceAlreadyExists) {
+            pineconeVectorStore = await PineconeStore.fromExistingIndex(
+              embeddings,
+              {
+                pineconeIndex: index,
+                namespace: docId,
+              }
+            );
+            return pineconeVectorStore;
+          } else {
+            //Create namespace
+            pineconeVectorStore = await PineconeStore.fromDocuments(
+              chunks,
+              embeddings,
+              {
+                pineconeIndex: index,
+                namespace: docId,
+              }
+            );
+            return pineconeVectorStore;
+          }
         }
-        const blob = await response.blob();
-        const loader = new PDFLoader(blob);
-        const docs = await loader.load();
-        const splitter = new RecursiveCharacterTextSplitter();
-        const splitDocs = await splitter.splitDocuments(docs);
-        return splitDocs;
-      });
+      );
 
-      await step.run("Generate embeddings", async () => {});
+      const storeEmbeddingsResponse = await step.run(
+        "Store embeddings",
+        async () => {
+          return await storeChunksInDB(chunks, docId);
+        }
+      );
 
-      // Update status to READY on success
-      return await step.run("Update document status to ready", async () => {
+      await step.run("Update document status", async () => {
         await prisma.document.update({
           where: { id: docId },
           data: { status: DocumentStatus.READY },
         });
-
-        // Attempt to revalidate dashboard path
-        try {
-          // This might fail in background context, so we catch errors
-          revalidatePath("/dashboard");
-        } catch (error) {
-          console.log("Could not revalidate path in background context");
-        }
-
-        return { success: true };
       });
+
+      return {
+        success: true,
+        message: "Embeddings generated successfully",
+      };
     } catch (error) {
       // Handle errors and update status
       return await step.run("Handle error", async () => {

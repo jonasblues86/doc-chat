@@ -28,7 +28,7 @@ export async function uploadDocuments({
       };
     }
 
-    const { publicUrl } = await storeFile(file, userId);
+    const { publicUrl, uniqueFileName } = await storeFile(file, userId);
     if (!publicUrl) {
       return {
         success: false,
@@ -39,6 +39,7 @@ export async function uploadDocuments({
       file,
       userId,
       publicUrl,
+      uniqueFileName,
     });
     if (!documentData) {
       return {
@@ -65,7 +66,7 @@ const storeFile = async (file: File, userId: string) => {
   try {
     const supabase = await supabaseServer();
     const uniqueId = crypto.randomUUID();
-    const uniqueFileName = `${uniqueId}-${file.name}`;
+    const uniqueFileName = `${uniqueId}`;
     const filePath = `${userId}/documents/${uniqueFileName}`;
     const { data, error } = await supabase.storage
       .from(`users`)
@@ -88,7 +89,7 @@ const storeFile = async (file: File, userId: string) => {
       };
     }
 
-    return { publicUrl };
+    return { publicUrl, uniqueFileName };
   } catch (error) {
     return {
       success: false,
@@ -102,10 +103,12 @@ const updateDocumentRecord = async ({
   file,
   userId,
   publicUrl,
+  uniqueFileName,
 }: {
   file: File;
   userId: string;
   publicUrl: string;
+  uniqueFileName: string;
 }) => {
   try {
     return prisma.$transaction(async (tx) => {
@@ -122,6 +125,7 @@ const updateDocumentRecord = async ({
             },
           },
           status: DocumentStatus.PROCESSING,
+          uniqueName: uniqueFileName,
         },
       });
       //update User

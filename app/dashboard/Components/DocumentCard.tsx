@@ -1,12 +1,42 @@
+"use client";
 import { DocumentStatus } from "@/enums";
 import Badge from "@/Components/atoms/statusBadge/Badge";
 import Icon from "@/Components/atoms/Icons/Icon";
 import { IconVariant } from "@/enums";
 import { Document } from "@prisma/client";
 import Link from "next/link";
-
+import Tooltip from "@/Components/atoms/tooltip/Tooltip";
+import { useState } from "react";
+import { deleteDocuments } from "@/app/services/documents/deleteDocuments";
+import toast from "react-hot-toast";
+import Toast from "@/Components/atoms/Toast/Toast";
+import { ToastVariant } from "@/enums";
 const DocumentCard = ({ item, index }: { item: Document; index: number }) => {
   const fileSize = (item.fileSize / 1024 / 1024).toFixed(2);
+  const [open, setOpen] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      const { success, message } = await deleteDocuments(item.id);
+      if (!success) {
+        toast.custom((t) => (
+          <Toast variant={ToastVariant.ERROR} message={message} />
+        ));
+        return;
+      }
+      toast.custom((t) => (
+        <Toast variant={ToastVariant.SUCCESS} message={message} />
+      ));
+    } catch (error) {
+      console.log(error);
+      toast.custom((t) => (
+        <Toast
+          variant={ToastVariant.ERROR}
+          message={"Failed to delete document"}
+        />
+      ));
+    }
+  };
   return (
     <Link href={`/document/${item.id}`}>
       <div
@@ -16,7 +46,14 @@ const DocumentCard = ({ item, index }: { item: Document; index: number }) => {
         {/* Status Badge */}
         <Badge status={item.status as DocumentStatus} />
         {/* Options Button */}
-        <div className="absolute top-2 right-2 p-1 rounded-md hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+        <div
+          className="absolute top-2 right-2 p-1 rounded-md hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+          onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setOpen(!open);
+          }}
+        >
           <Icon variant={IconVariant.OPTIONS} height={20} width={20} />
         </div>
         <div className="flex items-center gap-3 pt-2">
@@ -31,6 +68,24 @@ const DocumentCard = ({ item, index }: { item: Document; index: number }) => {
             </span>
             <span className="text-sm text-gray-500 block">{fileSize} MB</span>
           </div>
+        </div>
+        <div
+          className="absolute top-2 right-2 p-1 rounded-md hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+          onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setOpen(!open);
+          }}
+        >
+          <Icon variant={IconVariant.OPTIONS} height={20} width={20} />
+          <Tooltip
+            items={[
+              { name: "View", onClick: () => {} },
+              { name: "Delete", onClick: handleDelete },
+            ]}
+            open={open}
+            setOpen={setOpen}
+          />
         </div>
       </div>
     </Link>
