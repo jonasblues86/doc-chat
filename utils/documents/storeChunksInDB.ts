@@ -5,16 +5,21 @@ export const storeChunksInDB = async (
   chunks: Document<Record<string, any>>[],
   docId: string
 ) => {
-  const chunkData = chunks.map(async (chunk, index) => {
-    return await prisma.documentChunk.create({
-      data: {
-        documentId: docId,
+  try {
+    const chunkPromises = chunks.map((chunk, index) =>
+      prisma.documentChunk.create({
+        data: {
+          documentId: docId,
+          chunkIndex: index,
+          content: chunk.pageContent,
+        },
+      })
+    );
 
-        chunkIndex: index,
-        content: chunk.pageContent,
-      },
-    });
-  });
-  await Promise.all(chunkData);
-  return chunkData;
+    const createdChunks = await Promise.all(chunkPromises);
+    return createdChunks;
+  } catch (error) {
+    console.error("Failed to store chunks in database:", error);
+    throw error;
+  }
 };

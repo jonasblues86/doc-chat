@@ -7,9 +7,8 @@ export const createChunks = async (docId: string): Promise<Document[]> => {
   try {
     // Validate input
     if (!docId) {
-      throw new Error(`Failed to fetch document: Document not found`);
+      throw new Error("Document ID is required");
     }
-
     const document = await downloadDocument(docId);
 
     if (!document.ok) {

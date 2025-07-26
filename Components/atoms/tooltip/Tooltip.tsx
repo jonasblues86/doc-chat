@@ -1,4 +1,4 @@
-"use client ";
+"use client";
 import Button from "../Button/Button";
 import { ButtonVariant } from "@/enums";
 import { useRef, useEffect } from "react";
@@ -21,7 +21,7 @@ export default function Tooltip({
           tooltipRef.current &&
           !tooltipRef.current.contains(event.target as Node)
         ) {
-          setOpen(!open);
+          setOpen(false);
         }
       };
       document.addEventListener("mousedown", handleClickOutside);
@@ -29,7 +29,7 @@ export default function Tooltip({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [open]);
+  }, [open, setOpen]);
   return (
     open && (
       <div

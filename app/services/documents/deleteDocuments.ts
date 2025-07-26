@@ -20,6 +20,17 @@ export const deleteDocuments = async (
   const userId = session?.user.id;
 
   try {
+    const documentExists = await prisma.document.findUnique({
+      where: { id: docId },
+    });
+
+    if (!documentExists) {
+      return {
+        success: false,
+        message: "Document not found",
+      };
+    }
+
     const deletedDocument = await prisma.document.delete({
       where: { id: docId },
     });
